@@ -94,15 +94,18 @@
   .total .diff .up{color:#16a34a}
   .total .diff .down{color:var(--b)}
 
+  /* バーは常に横幅いっぱいの独立した行にする。
+     名前や金額と同じ行に置くと、文字数でバーの幅が変わって行ごとに比較できなくなる。 */
   .breakdown{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);text-align:left}
-  .bd-row{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+  .bd-row{margin-bottom:11px}
   .bd-row:last-child{margin-bottom:0}
-  .bd-dot{width:10px;height:10px;border-radius:50%;background:var(--jc);flex:0 0 auto}
-  .bd-name{flex:0 0 auto;max-width:38%;font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .bd-bar{flex:1;min-width:0;height:8px;border-radius:999px;background:var(--surface-2);overflow:hidden}
-  .bd-bar i{display:block;height:100%;background:var(--jc);border-radius:999px;transition:width .25s ease}
+  .bd-top{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+  .bd-dot{width:9px;height:9px;border-radius:50%;background:var(--jc);flex:0 0 auto}
+  .bd-name{flex:1;min-width:0;font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bd-cnt{flex:0 0 auto;font-size:.7rem;color:var(--muted);font-variant-numeric:tabular-nums}
   .bd-amt{flex:0 0 auto;font-size:.85rem;font-weight:700;font-variant-numeric:tabular-nums}
-  .bd-cnt{flex:0 0 auto;font-size:.68rem;color:var(--muted);font-variant-numeric:tabular-nums;width:2.6em;text-align:right}
+  .bd-bar{height:7px;border-radius:999px;background:var(--surface-2);overflow:hidden}
+  .bd-bar i{display:block;height:100%;background:var(--jc);border-radius:999px;transition:width .25s ease}
 
   /* ---- 入力 ---- */
   .yen-row{position:relative}
@@ -538,17 +541,22 @@
     });
     order.sort(function(a,b){ return by[b].amount - by[a].amount; });
 
-    var max = by[order[0]].amount || 1;
     box.hidden = false;
     box.innerHTML = order.map(function(id){
       var v = by[id];
-      var pct = total > 0 ? Math.round(v.amount / total * 100) : 0;
+      // バーの長さと横に出す % は同じ基準（月の合計に占める割合）にそろえる
+      var share = total > 0 ? v.amount / total * 100 : 0;
+      // 少額でも 0% とは出さず、バーも消えないようにする
+      var pct = (share > 0 && share < 0.5) ? "1%未満" : Math.round(share) + "%";
+      var bar = 'width:' + share.toFixed(2) + '%' + (share > 0 ? ';min-width:6px' : '');
       return '<div class="bd-row" style="--jc:' + jobColor(id) + '">' +
-        '<span class="bd-dot"></span>' +
-        '<span class="bd-name">' + esc(jobName(id)) + '</span>' +
-        '<span class="bd-bar"><i style="width:' + (v.amount / max * 100) + '%"></i></span>' +
-        '<span class="bd-cnt">' + pct + '%</span>' +
-        '<span class="bd-amt">' + fmt(v.amount) + '</span>' +
+        '<div class="bd-top">' +
+          '<span class="bd-dot"></span>' +
+          '<span class="bd-name">' + esc(jobName(id)) + '</span>' +
+          '<span class="bd-cnt">' + pct + '</span>' +
+          '<span class="bd-amt">' + fmt(v.amount) + '</span>' +
+        '</div>' +
+        '<div class="bd-bar"><i style="' + bar + '"></i></div>' +
       '</div>';
     }).join("");
   }
