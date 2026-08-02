@@ -1,5 +1,7 @@
 # 月給計算
 
+https://gekkyu-keisan.vercel.app
+
 掛け持ちの日払い・都度払いの給料を、もらった都度いれて、その月の合計を出すアプリ。
 
 - 単一ファイルの静的サイト（`index.html`）＋ PWA（ホーム画面に追加してオフラインでも動く）
@@ -43,11 +45,14 @@ Service Worker を動かすには `http://` で開く必要がある（`file://`
 
 ## デプロイ
 
-静的ホスティングにそのまま置くだけ。Vercel なら:
+GitHub（`Ryota-beni/gekkyu-keisan`）と Vercel が繋がっているので、
+**`main` に push すれば自動で本番に反映される。**
+
+手動で出したいときは:
 
 ```sh
-vercel        # プレビュー
-vercel --prod # 本番
+vercel --prod
 ```
 
-`sw.js` の `CACHE` の値（`gekkyu-v1`）を更新すると、古いキャッシュが捨てられる。
+`index.html` を書きかえたときは、`sw.js` の `CACHE`（`gekkyu-v1`）の数字も上げると、
+古いキャッシュが確実に捨てられる。
