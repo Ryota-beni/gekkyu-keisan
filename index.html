@@ -1,0 +1,950 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<title>月給計算</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="月給">
+
+<style>
+  :root{
+    --bg:#f4f6f8;
+    --surface:#ffffff;
+    --surface-2:#f1f5f9;
+    --text:#0f172a;
+    --muted:#64748b;
+    --line:#e2e8f0;
+    --accent:#0f766e;
+    --accent-soft:#ccfbf1;
+    --a:#0ea5e9;
+    --b:#f43f5e;
+    --danger:#dc2626;
+    --radius:16px;
+    --shadow:0 1px 2px rgba(15,23,42,.06),0 8px 24px rgba(15,23,42,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0b1220;
+      --surface:#111a2b;
+      --surface-2:#0e1626;
+      --text:#e5edf7;
+      --muted:#94a3b8;
+      --line:#22304a;
+      --accent:#2dd4bf;
+      --accent-soft:#0f3b36;
+      --a:#38bdf8;
+      --b:#fb7185;
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px rgba(0,0,0,.4);
+    }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    line-height:1.5;
+    -webkit-text-size-adjust:100%;
+    padding:
+      max(12px, env(safe-area-inset-top))
+      max(12px, env(safe-area-inset-right))
+      calc(16px + env(safe-area-inset-bottom))
+      max(12px, env(safe-area-inset-left));
+  }
+  .wrap{max-width:520px;margin:0 auto}
+
+  header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:2px 2px 12px}
+  header h1{font-size:1.15rem;margin:0;letter-spacing:.02em;
+    background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .icon-btn{
+    flex:0 0 auto;width:34px;height:34px;border-radius:10px;border:1px solid var(--line);
+    background:var(--surface);color:var(--muted);font-size:1.05rem;line-height:1;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .icon-btn:active{transform:translateY(1px)}
+
+  .card{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:14px;margin-bottom:12px;
+  }
+  .field-label{font-size:.8rem;color:var(--muted)}
+
+  /* ---- 月ナビ ---- */
+  .monthnav{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+  .monthnav .nav{
+    flex:0 0 auto;width:38px;height:38px;border-radius:11px;border:1px solid var(--line);
+    background:var(--surface);color:var(--text);font-size:1.05rem;line-height:1;cursor:pointer;
+  }
+  .monthnav .nav:active{transform:translateY(1px)}
+  .monthnav .label{
+    flex:1;min-width:0;text-align:center;font-size:1.05rem;font-weight:800;
+    font-variant-numeric:tabular-nums;cursor:pointer;
+  }
+  .monthnav .label small{display:block;font-size:.68rem;font-weight:600;color:var(--muted);letter-spacing:.02em}
+
+  /* ---- 合計 ---- */
+  .total{background:linear-gradient(180deg,var(--accent-soft),var(--surface));text-align:center}
+  .total .amt{font-size:2.5rem;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.02em;line-height:1.15}
+  .total .amt small{font-size:1.1rem;font-weight:700;color:var(--muted);margin-right:2px}
+  .total .sub{font-size:.78rem;color:var(--muted);margin-top:2px}
+  .total .diff{font-size:.78rem;color:var(--muted);margin-top:6px}
+  .total .diff b{font-variant-numeric:tabular-nums;color:var(--text)}
+  .total .diff .up{color:#16a34a}
+  .total .diff .down{color:var(--b)}
+
+  .breakdown{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);text-align:left}
+  .bd-row{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+  .bd-row:last-child{margin-bottom:0}
+  .bd-dot{width:10px;height:10px;border-radius:50%;background:var(--jc);flex:0 0 auto}
+  .bd-name{flex:0 0 auto;max-width:38%;font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bd-bar{flex:1;min-width:0;height:8px;border-radius:999px;background:var(--surface-2);overflow:hidden}
+  .bd-bar i{display:block;height:100%;background:var(--jc);border-radius:999px;transition:width .25s ease}
+  .bd-amt{flex:0 0 auto;font-size:.85rem;font-weight:700;font-variant-numeric:tabular-nums}
+  .bd-cnt{flex:0 0 auto;font-size:.68rem;color:var(--muted);font-variant-numeric:tabular-nums;width:2.6em;text-align:right}
+
+  /* ---- 入力 ---- */
+  .yen-row{position:relative}
+  .yen-row .yen{position:absolute;left:12px;top:50%;transform:translateY(-50%);
+    color:var(--muted);font-weight:700;font-size:1.1rem;pointer-events:none}
+  .money-input{
+    width:100%;font-size:1.6rem;font-weight:800;text-align:right;
+    padding:12px 14px 12px 30px;border-radius:12px;border:1px solid var(--line);
+    background:var(--surface-2);color:var(--text);font-variant-numeric:tabular-nums;
+  }
+  .money-input:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
+
+  .quick{display:flex;gap:6px;margin-top:8px}
+  .quick button{
+    flex:1;min-width:0;font:inherit;font-size:.78rem;font-weight:700;cursor:pointer;
+    padding:7px 2px;border-radius:9px;border:1px solid var(--line);
+    background:var(--surface-2);color:var(--muted);font-variant-numeric:tabular-nums;
+  }
+  .quick button:active{transform:translateY(1px)}
+
+  .chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+  .chip{
+    font:inherit;font-size:.85rem;font-weight:700;cursor:pointer;
+    padding:8px 13px;border-radius:999px;border:1px solid var(--line);
+    background:var(--surface-2);color:var(--muted);display:flex;align-items:center;gap:6px;
+  }
+  .chip .cdot{width:9px;height:9px;border-radius:50%;background:var(--jc,var(--muted))}
+  .chip:active{transform:translateY(1px)}
+  .chip.on{
+    background:color-mix(in srgb, var(--jc) 14%, var(--surface));
+    border-color:var(--jc);color:var(--text);
+  }
+  .chip.add{color:var(--muted);font-weight:600}
+
+  .newjob{display:none;gap:7px;margin-top:9px}
+  .newjob.open{display:flex}
+  .newjob input{
+    flex:1;min-width:0;padding:10px 11px;border-radius:10px;border:1px solid var(--line);
+    background:var(--surface-2);color:var(--text);font-size:.92rem;
+  }
+
+  .when{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;
+    padding:10px 12px;border-radius:11px;background:var(--surface-2);border:1px solid var(--line)}
+  .when .w-left{min-width:0}
+  .when .w-time{font-size:.92rem;font-weight:700;font-variant-numeric:tabular-nums}
+  .when .w-note{font-size:.7rem;color:var(--muted)}
+  .when .w-note b{color:var(--accent)}
+  .when .w-edit{flex:0 0 auto;font:inherit;font-size:.78rem;cursor:pointer;padding:7px 11px;
+    border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--muted)}
+  .when input[type="datetime-local"]{
+    width:100%;margin-top:9px;padding:9px 10px;border-radius:10px;border:1px solid var(--line);
+    background:var(--surface);color:var(--text);font:inherit;font-size:.9rem;display:none;
+  }
+  .when.editing input[type="datetime-local"]{display:block}
+  .when.editing{flex-wrap:wrap}
+
+  .btn{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);
+    background:var(--surface-2);color:var(--text);padding:8px 12px;font-size:.85rem}
+  .btn:active{transform:translateY(1px)}
+  .btn.accent{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+  .btn.danger{color:var(--danger);border-color:color-mix(in srgb, var(--danger) 35%, var(--line))}
+  .btn.block{display:block;width:100%;text-align:center}
+  .btn.big{padding:14px;font-size:1rem;border-radius:12px;margin-top:12px}
+  .btn:disabled{opacity:.45;cursor:default}
+
+  /* ---- 履歴 ---- */
+  .hist-head{display:flex;align-items:baseline;justify-content:space-between;margin:0 4px 8px}
+  .hist-head h2{font-size:.92rem;margin:0}
+  .hist-head span{font-size:.75rem;color:var(--muted);font-variant-numeric:tabular-nums}
+  .daygroup{margin-bottom:10px}
+  .daygroup:last-child{margin-bottom:0}
+  .dayhead{display:flex;align-items:baseline;justify-content:space-between;
+    font-size:.72rem;color:var(--muted);padding:0 2px 5px;font-variant-numeric:tabular-nums}
+  .dayhead b{color:var(--text);font-weight:700}
+  .dayhead em{font-style:normal;font-size:.66rem;font-weight:700;margin-left:6px;padding:1px 7px;
+    border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+  .entry{
+    display:flex;align-items:center;gap:10px;width:100%;text-align:left;font:inherit;cursor:pointer;
+    padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);
+    margin-bottom:6px;color:var(--text);
+  }
+  .entry:last-child{margin-bottom:0}
+  .entry:active{transform:translateY(1px)}
+  .entry .edot{width:10px;height:10px;border-radius:50%;background:var(--jc);flex:0 0 auto}
+  .entry .ename{flex:1;min-width:0;font-size:.88rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .entry .etime{flex:0 0 auto;font-size:.72rem;color:var(--muted);font-variant-numeric:tabular-nums}
+  .entry .eamt{flex:0 0 auto;font-size:.98rem;font-weight:800;font-variant-numeric:tabular-nums}
+  .empty{text-align:center;color:var(--muted);font-size:.85rem;padding:18px 0}
+
+  /* ---- モーダル ---- */
+  .modal-overlay{position:fixed;inset:0;background:rgba(2,6,23,.55);z-index:50;
+    display:flex;align-items:flex-end;justify-content:center}
+  .modal-overlay[hidden]{display:none}
+  .modal{
+    background:var(--surface);width:100%;max-width:520px;
+    border-radius:20px 20px 0 0;border-top:4px solid var(--accent);
+    padding:16px 16px calc(16px + env(safe-area-inset-bottom));
+    max-height:88vh;overflow:auto;box-shadow:0 -12px 40px rgba(0,0,0,.3);animation:sheet-up .22s ease;
+  }
+  @keyframes sheet-up{from{transform:translateY(30px);opacity:.4}to{transform:translateY(0);opacity:1}}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .modal-head h2{font-size:1.05rem;margin:0}
+  .modal-close{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);
+    background:var(--surface-2);color:var(--text);font-size:1.3rem;line-height:1;cursor:pointer}
+  .sec{margin-bottom:18px}
+  .sec > .field-label{display:block;margin-bottom:8px}
+  .job-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .job-row .sw{flex:0 0 auto;width:34px;height:34px;border-radius:9px;border:1px solid var(--line);
+    background:var(--jc);cursor:pointer}
+  .job-row input{flex:1;min-width:0;padding:10px 11px;border-radius:10px;border:1px solid var(--line);
+    background:var(--surface-2);color:var(--text);font-size:.92rem}
+  .job-row .del{flex:0 0 auto;width:36px;height:36px;border-radius:9px;border:1px solid var(--line);
+    background:transparent;color:var(--danger);font-size:1.15rem;line-height:1;cursor:pointer}
+  .cut-row{display:flex;align-items:center;gap:10px}
+  .cut-row input[type="time"]{padding:10px 11px;border-radius:10px;border:1px solid var(--line);
+    background:var(--surface-2);color:var(--text);font:inherit;font-size:.95rem}
+  .hint{font-size:.72rem;color:var(--muted);margin-top:8px;line-height:1.6}
+  .btnrow{display:flex;gap:8px}
+  .btnrow .btn{flex:1;text-align:center}
+
+  /* ---- トースト ---- */
+  .toast{
+    position:fixed;left:50%;transform:translateX(-50%) translateY(10px);
+    bottom:calc(22px + env(safe-area-inset-bottom));z-index:80;
+    background:var(--text);color:var(--bg);font-size:.85rem;font-weight:700;
+    padding:10px 18px;border-radius:999px;box-shadow:0 8px 24px rgba(0,0,0,.25);
+    opacity:0;pointer-events:none;transition:opacity .2s ease, transform .2s ease;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>月給計算</h1>
+    <button class="icon-btn" id="open-settings" type="button" aria-label="設定">⚙</button>
+  </header>
+
+  <!-- 月ナビ -->
+  <div class="monthnav">
+    <button class="nav" id="prev-month" type="button" aria-label="前の月">‹</button>
+    <div class="label" id="month-label" role="button" tabindex="0" title="今月に戻る">—<small id="month-range"></small></div>
+    <button class="nav" id="next-month" type="button" aria-label="次の月">›</button>
+  </div>
+
+  <!-- 合計 -->
+  <section class="card total">
+    <div class="amt" id="total-amt"><small>¥</small>0</div>
+    <div class="sub" id="total-sub">記録なし</div>
+    <div class="diff" id="total-diff"></div>
+    <div class="breakdown" id="breakdown" hidden></div>
+  </section>
+
+  <!-- 入力 -->
+  <section class="card">
+    <span class="field-label">もらった金額</span>
+    <div class="yen-row" style="margin-top:8px">
+      <span class="yen">¥</span>
+      <input class="money-input" id="amount" type="text" inputmode="numeric" placeholder="0" aria-label="金額">
+    </div>
+    <div class="quick">
+      <button type="button" data-add="1000">+1,000</button>
+      <button type="button" data-add="5000">+5,000</button>
+      <button type="button" data-add="10000">+1万</button>
+      <button type="button" data-clear="1">クリア</button>
+    </div>
+
+    <div class="chips" id="chips"></div>
+    <div class="newjob" id="newjob">
+      <input id="newjob-name" type="text" placeholder="職場の名前" maxlength="24">
+      <button class="btn accent" id="newjob-save" type="button">追加</button>
+    </div>
+
+    <div class="when" id="when">
+      <div class="w-left">
+        <div class="w-time" id="when-time">—</div>
+        <div class="w-note" id="when-note"></div>
+      </div>
+      <button class="w-edit" id="when-edit" type="button">変更</button>
+      <input id="when-input" type="datetime-local">
+    </div>
+
+    <button class="btn accent big block" id="submit" type="button">記録する</button>
+  </section>
+
+  <!-- 履歴 -->
+  <div class="hist-head">
+    <h2>この月の記録</h2>
+    <span id="hist-count"></span>
+  </div>
+  <section class="card" id="history"></section>
+</div>
+
+<!-- 設定シート -->
+<div class="modal-overlay" id="settings-overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-label="設定">
+    <div class="modal-head">
+      <h2>設定</h2>
+      <button class="modal-close" id="settings-close" type="button" aria-label="閉じる">×</button>
+    </div>
+
+    <div class="sec">
+      <span class="field-label">職場</span>
+      <div id="job-list"></div>
+      <button class="btn block" id="job-add" type="button" style="margin-top:8px">＋ 職場を追加</button>
+      <div class="hint">色の四角をタップすると色が変わります。記録のある職場を削除しても、過去の記録と名前は残ります。</div>
+    </div>
+
+    <div class="sec">
+      <span class="field-label">月の締め</span>
+      <div class="cut-row">
+        <span style="font-size:.9rem">毎月1日の</span>
+        <input id="cutoff" type="time" step="900">
+        <span style="font-size:.9rem">まで前の月</span>
+      </div>
+      <div class="hint" id="cutoff-hint"></div>
+    </div>
+
+    <div class="sec">
+      <span class="field-label">データ</span>
+      <div class="btnrow">
+        <button class="btn" id="export" type="button">書き出し</button>
+        <button class="btn" id="import" type="button">読み込み</button>
+      </div>
+      <button class="btn danger block" id="wipe" type="button" style="margin-top:8px">すべて削除</button>
+      <input id="import-file" type="file" accept="application/json,.json" hidden>
+      <div class="hint">データはこの端末の中だけに保存されます。機種変更の前に書き出しておくと安心です。</div>
+    </div>
+  </div>
+</div>
+
+<!-- 記録の編集シート -->
+<div class="modal-overlay" id="edit-overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-label="記録を編集">
+    <div class="modal-head">
+      <h2>記録を編集</h2>
+      <button class="modal-close" id="edit-close" type="button" aria-label="閉じる">×</button>
+    </div>
+
+    <span class="field-label">金額</span>
+    <div class="yen-row" style="margin:8px 0 14px">
+      <span class="yen">¥</span>
+      <input class="money-input" id="edit-amount" type="text" inputmode="numeric" placeholder="0" aria-label="金額">
+    </div>
+
+    <span class="field-label">職場</span>
+    <div class="chips" id="edit-chips" style="margin-bottom:14px"></div>
+
+    <span class="field-label">日時</span>
+    <input id="edit-when" type="datetime-local"
+      style="width:100%;margin:8px 0 6px;padding:11px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);color:var(--text);font:inherit;font-size:.95rem">
+    <div class="hint" id="edit-note" style="margin-top:0"></div>
+
+    <button class="btn accent block" id="edit-save" type="button" style="margin-top:16px;padding:12px">保存</button>
+    <button class="btn danger block" id="edit-delete" type="button" style="margin-top:8px">この記録を削除</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  var STORE_KEY = "gekkyu-v1";
+  var PALETTE = ["#0ea5e9","#f43f5e","#22c55e","#f59e0b","#a855f7","#14b8a6","#ef4444","#6366f1"];
+
+  // ---------- state ----------
+  var state = load();
+
+  function load(){
+    var base = { v:1, jobs:[], entries:[], cutoffMin:720 };
+    try{
+      var raw = JSON.parse(localStorage.getItem(STORE_KEY) || "null");
+      if(raw && typeof raw === "object"){
+        if(Array.isArray(raw.jobs)) base.jobs = raw.jobs;
+        if(Array.isArray(raw.entries)) base.entries = raw.entries;
+        if(typeof raw.cutoffMin === "number") base.cutoffMin = clampCut(raw.cutoffMin);
+      }
+    }catch(e){}
+    return base;
+  }
+  function save(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){} }
+  function clampCut(m){ m = Math.round(m); return (m>=0 && m<1440) ? m : 720; }
+  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+  // ---------- 締めルール ----------
+  // 記録の日時から締め時刻ぶん巻き戻した日付が、その記録の「計上月」。
+  // 例: 締め12:00 なら 9/1 03:00 の記録 → 8/31 15:00 → 8月に計上。
+  function monthOf(ts){
+    var d = new Date(ts);
+    d.setMinutes(d.getMinutes() - state.cutoffMin);
+    return { y:d.getFullYear(), m:d.getMonth() };
+  }
+  function sameMonth(a, b){ return a.y === b.y && a.m === b.m; }
+  function shiftMonth(mo, delta){
+    var d = new Date(mo.y, mo.m + delta, 1);
+    return { y:d.getFullYear(), m:d.getMonth() };
+  }
+  // 計上月の実時間レンジ [start, end)
+  function rangeOf(mo){
+    var s = new Date(mo.y, mo.m, 1); s.setMinutes(s.getMinutes() + state.cutoffMin);
+    var e = new Date(mo.y, mo.m + 1, 1); e.setMinutes(e.getMinutes() + state.cutoffMin);
+    return [s, e];
+  }
+
+  // ---------- 表示ヘルパ ----------
+  function p2(n){ return (n<10?"0":"") + n; }
+  function fmt(n){ return "¥" + Math.round(n).toLocaleString("ja-JP"); }
+  function commas(v){
+    var d = String(v==null ? "" : v).replace(/[^0-9]/g, "");
+    return d === "" ? "" : d.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  }
+  function toNum(v){
+    var s = String(v==null ? "" : v).replace(/[^0-9]/g, "");
+    return s === "" ? 0 : parseInt(s, 10);
+  }
+  function toLocalInput(ts){
+    var d = new Date(ts);
+    return d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate())+"T"+p2(d.getHours())+":"+p2(d.getMinutes());
+  }
+  function fromLocalInput(s){
+    var t = new Date(s).getTime();
+    return isNaN(t) ? null : t;
+  }
+  function timeStr(d){ return d.getMonth()+1 + "/" + d.getDate() + " " + p2(d.getHours()) + ":" + p2(d.getMinutes()); }
+  function cutoffStr(){ return p2(Math.floor(state.cutoffMin/60)) + ":" + p2(state.cutoffMin%60); }
+
+  function formatMoneyField(el){
+    var raw = el.value;
+    var toHalf = function(s){ return s.replace(/[０-９]/g, function(c){ return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); }); };
+    var pos = el.selectionStart != null ? el.selectionStart : raw.length;
+    var digitsBefore = toHalf(raw.slice(0, pos)).replace(/[^0-9]/g, "").length;
+    var cleaned = toHalf(raw).replace(/[^0-9]/g, "");
+    var formatted = commas(cleaned);
+    el.value = formatted;
+    var newPos = 0, cnt = 0;
+    if(digitsBefore > 0){
+      newPos = formatted.length;
+      for(var k=0;k<formatted.length;k++){
+        var code = formatted.charCodeAt(k);
+        if(code>=48 && code<=57){ cnt++; if(cnt===digitsBefore){ newPos = k+1; break; } }
+      }
+    }
+    try{ el.setSelectionRange(newPos, newPos); }catch(e){}
+    return cleaned;
+  }
+
+  var toastTimer = null;
+  function toast(msg){
+    var el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ el.classList.remove("show"); }, 1600);
+  }
+
+  // ---------- 職場 ----------
+  function jobById(id){
+    for(var i=0;i<state.jobs.length;i++){ if(state.jobs[i].id === id) return state.jobs[i]; }
+    return null;
+  }
+  function jobName(id){ var j = jobById(id); return j ? j.name : "（削除済み）"; }
+  function jobColor(id){ var j = jobById(id); return j ? j.color : "#94a3b8"; }
+  function activeJobs(){ return state.jobs.filter(function(j){ return !j.archived; }); }
+  function addJob(name){
+    name = String(name || "").trim();
+    if(!name) return null;
+    var job = { id:uid(), name:name, color:PALETTE[state.jobs.length % PALETTE.length] };
+    state.jobs.push(job);
+    save();
+    return job;
+  }
+
+  // ---------- 画面の状態 ----------
+  var viewMonth = monthOf(Date.now());
+  var draft = { amount:"", jobId:null, ts:null };   // ts=null → 記録時の「今」
+  var editingId = null;
+  var editDraft = null;
+
+  function draftTs(){ return draft.ts == null ? Date.now() : draft.ts; }
+
+  // ---------- 描画 ----------
+  function entriesOf(mo){
+    return state.entries.filter(function(e){ return sameMonth(monthOf(e.ts), mo); })
+      .sort(function(a,b){ return b.ts - a.ts; });
+  }
+  function sum(list){ return list.reduce(function(s,e){ return s + e.amount; }, 0); }
+
+  function renderMonth(){
+    var list = entriesOf(viewMonth);
+    var total = sum(list);
+    var now = monthOf(Date.now());
+
+    var label = viewMonth.y + "年" + (viewMonth.m+1) + "月";
+    if(sameMonth(viewMonth, now)) label += "（今月）";
+    document.getElementById("month-label").firstChild.nodeValue = label;
+
+    var r = rangeOf(viewMonth);
+    document.getElementById("month-range").textContent =
+      timeStr(r[0]) + " 〜 " + timeStr(r[1]);
+
+    document.getElementById("total-amt").innerHTML =
+      '<small>¥</small>' + Math.round(total).toLocaleString("ja-JP");
+    document.getElementById("total-sub").textContent =
+      list.length ? list.length + "件" : "まだ記録がありません";
+
+    // 前月比
+    var prev = sum(entriesOf(shiftMonth(viewMonth, -1)));
+    var diffEl = document.getElementById("total-diff");
+    if(prev > 0 && list.length){
+      var d = total - prev;
+      var cls = d >= 0 ? "up" : "down";
+      var sign = d >= 0 ? "+" : "−";
+      diffEl.innerHTML = '前の月 <b>' + fmt(prev) + '</b> ' +
+        '<span class="' + cls + '">' + sign + fmt(Math.abs(d)).slice(1) + '</span>';
+    }else{
+      diffEl.textContent = "";
+    }
+
+    renderBreakdown(list, total);
+    renderHistory(list);
+  }
+
+  function renderBreakdown(list, total){
+    var box = document.getElementById("breakdown");
+    if(!list.length){ box.hidden = true; box.innerHTML = ""; return; }
+
+    var by = {}, order = [];
+    list.forEach(function(e){
+      if(!by[e.jobId]){ by[e.jobId] = { amount:0, count:0 }; order.push(e.jobId); }
+      by[e.jobId].amount += e.amount;
+      by[e.jobId].count++;
+    });
+    order.sort(function(a,b){ return by[b].amount - by[a].amount; });
+
+    var max = by[order[0]].amount || 1;
+    box.hidden = false;
+    box.innerHTML = order.map(function(id){
+      var v = by[id];
+      var pct = total > 0 ? Math.round(v.amount / total * 100) : 0;
+      return '<div class="bd-row" style="--jc:' + jobColor(id) + '">' +
+        '<span class="bd-dot"></span>' +
+        '<span class="bd-name">' + esc(jobName(id)) + '</span>' +
+        '<span class="bd-bar"><i style="width:' + (v.amount / max * 100) + '%"></i></span>' +
+        '<span class="bd-cnt">' + pct + '%</span>' +
+        '<span class="bd-amt">' + fmt(v.amount) + '</span>' +
+      '</div>';
+    }).join("");
+  }
+
+  function renderHistory(list){
+    var box = document.getElementById("history");
+    document.getElementById("hist-count").textContent = list.length ? list.length + "件" : "";
+
+    if(!list.length){
+      box.innerHTML = '<div class="empty">金額を入れて「記録する」を押すと<br>ここに溜まっていきます</div>';
+      return;
+    }
+
+    var groups = [], byDay = {};
+    list.forEach(function(e){
+      var d = new Date(e.ts);
+      var key = d.getFullYear() + "-" + p2(d.getMonth()+1) + "-" + p2(d.getDate());
+      if(!byDay[key]){ byDay[key] = { date:d, items:[], total:0 }; groups.push(key); }
+      byDay[key].items.push(e);
+      byDay[key].total += e.amount;
+    });
+
+    var wd = ["日","月","火","水","木","金","土"];
+    box.innerHTML = groups.map(function(key){
+      var g = byDay[key];
+      // 実際の日付とちがう月に計上している日（＝締めをまたいだ深夜分）に印をつける
+      var tag = (g.date.getMonth() === viewMonth.m && g.date.getFullYear() === viewMonth.y)
+        ? "" : '<em>締め前</em>';
+      var head = '<div class="dayhead"><span>' + (g.date.getMonth()+1) + "/" + g.date.getDate() +
+        "（" + wd[g.date.getDay()] + "）" + tag + '</span><b>' + fmt(g.total) + '</b></div>';
+      var rows = g.items.map(function(e){
+        var d = new Date(e.ts);
+        return '<button class="entry" type="button" data-id="' + e.id + '" style="--jc:' + jobColor(e.jobId) + '">' +
+          '<span class="edot"></span>' +
+          '<span class="ename">' + esc(jobName(e.jobId)) + '</span>' +
+          '<span class="etime">' + p2(d.getHours()) + ":" + p2(d.getMinutes()) + '</span>' +
+          '<span class="eamt">' + fmt(e.amount) + '</span>' +
+        '</button>';
+      }).join("");
+      return '<div class="daygroup">' + head + rows + '</div>';
+    }).join("");
+  }
+
+  function esc(s){
+    return String(s).replace(/[&<>"]/g, function(c){
+      return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c];
+    });
+  }
+
+  function renderChips(){
+    var jobs = activeJobs();
+    var html = jobs.map(function(j){
+      return '<button class="chip' + (draft.jobId === j.id ? " on" : "") + '" type="button" data-job="' + j.id + '" style="--jc:' + j.color + '">' +
+        '<span class="cdot"></span>' + esc(j.name) + '</button>';
+    }).join("");
+    html += '<button class="chip add" type="button" id="chip-add">＋ 職場</button>';
+    document.getElementById("chips").innerHTML = html;
+  }
+
+  function renderWhen(){
+    var ts = draftTs();
+    var d = new Date(ts);
+    var isNow = draft.ts == null;
+    document.getElementById("when-time").textContent =
+      (isNow ? "いま " : "") + (d.getMonth()+1) + "/" + d.getDate() + " " + p2(d.getHours()) + ":" + p2(d.getMinutes());
+
+    var mo = monthOf(ts);
+    var now = monthOf(Date.now());
+    var note = "→ " + (mo.m+1) + "月に計上";
+    if(!sameMonth(mo, now)) note += "（今の月とは別）";
+    else if(mo.m !== d.getMonth()) note += "（締め前なので前の月）";
+    document.getElementById("when-note").innerHTML = "<b>" + esc(note) + "</b>";
+  }
+
+  function renderSubmit(){
+    document.getElementById("submit").disabled = !(toNum(draft.amount) > 0 && draft.jobId);
+  }
+
+  function renderAll(){
+    renderChips();
+    renderWhen();
+    renderSubmit();
+    renderMonth();
+  }
+
+  // ---------- 入力イベント ----------
+  var amountEl = document.getElementById("amount");
+  amountEl.addEventListener("input", function(){
+    draft.amount = formatMoneyField(amountEl);
+    renderSubmit();
+  });
+
+  document.querySelector(".quick").addEventListener("click", function(ev){
+    var b = ev.target.closest("button");
+    if(!b) return;
+    if(b.dataset.clear){
+      draft.amount = "";
+    }else{
+      draft.amount = String(toNum(draft.amount) + parseInt(b.dataset.add, 10));
+    }
+    amountEl.value = commas(draft.amount);
+    renderSubmit();
+  });
+
+  document.getElementById("chips").addEventListener("click", function(ev){
+    var b = ev.target.closest("button");
+    if(!b) return;
+    if(b.id === "chip-add"){
+      var box = document.getElementById("newjob");
+      box.classList.toggle("open");
+      if(box.classList.contains("open")) document.getElementById("newjob-name").focus();
+      return;
+    }
+    draft.jobId = (draft.jobId === b.dataset.job) ? null : b.dataset.job;
+    renderChips();
+    renderSubmit();
+  });
+
+  function commitNewJob(){
+    var input = document.getElementById("newjob-name");
+    var job = addJob(input.value);
+    if(!job){ input.focus(); return; }
+    input.value = "";
+    document.getElementById("newjob").classList.remove("open");
+    draft.jobId = job.id;
+    renderChips();
+    renderSubmit();
+  }
+  document.getElementById("newjob-save").addEventListener("click", commitNewJob);
+  document.getElementById("newjob-name").addEventListener("keydown", function(ev){
+    if(ev.key === "Enter"){ ev.preventDefault(); commitNewJob(); }
+  });
+
+  var whenBox = document.getElementById("when");
+  var whenInput = document.getElementById("when-input");
+  document.getElementById("when-edit").addEventListener("click", function(){
+    var open = whenBox.classList.toggle("editing");
+    this.textContent = open ? "いまに戻す" : "変更";
+    if(open){
+      whenInput.value = toLocalInput(draftTs());
+      draft.ts = fromLocalInput(whenInput.value);
+    }else{
+      draft.ts = null;
+    }
+    renderWhen();
+  });
+  whenInput.addEventListener("input", function(){
+    var t = fromLocalInput(whenInput.value);
+    if(t != null){ draft.ts = t; renderWhen(); }
+  });
+
+  document.getElementById("submit").addEventListener("click", function(){
+    var amount = toNum(draft.amount);
+    if(!(amount > 0) || !draft.jobId) return;
+
+    var ts = draftTs();
+    state.entries.push({ id:uid(), ts:ts, jobId:draft.jobId, amount:amount });
+    save();
+
+    var mo = monthOf(ts);
+    viewMonth = mo;
+
+    // 入力欄をリセット（職場の選択は次も同じことが多いので残す）
+    draft.amount = "";
+    draft.ts = null;
+    amountEl.value = "";
+    whenBox.classList.remove("editing");
+    document.getElementById("when-edit").textContent = "変更";
+
+    renderAll();
+    toast(fmt(amount) + " を " + (mo.m+1) + "月に記録");
+  });
+
+  // ---------- 月ナビ ----------
+  document.getElementById("prev-month").addEventListener("click", function(){
+    viewMonth = shiftMonth(viewMonth, -1); renderMonth();
+  });
+  document.getElementById("next-month").addEventListener("click", function(){
+    viewMonth = shiftMonth(viewMonth, 1); renderMonth();
+  });
+  document.getElementById("month-label").addEventListener("click", function(){
+    viewMonth = monthOf(Date.now()); renderMonth();
+  });
+
+  // ---------- 記録の編集 ----------
+  var editOverlay = document.getElementById("edit-overlay");
+  var editAmount = document.getElementById("edit-amount");
+  var editWhen = document.getElementById("edit-when");
+
+  document.getElementById("history").addEventListener("click", function(ev){
+    var b = ev.target.closest(".entry");
+    if(b) openEdit(b.dataset.id);
+  });
+
+  function openEdit(id){
+    var e = null;
+    for(var i=0;i<state.entries.length;i++){ if(state.entries[i].id === id) e = state.entries[i]; }
+    if(!e) return;
+    editingId = id;
+    editDraft = { amount:String(e.amount), jobId:e.jobId, ts:e.ts };
+    editAmount.value = commas(editDraft.amount);
+    editWhen.value = toLocalInput(e.ts);
+    renderEditChips();
+    renderEditNote();
+    editOverlay.hidden = false;
+  }
+  function closeEdit(){ editOverlay.hidden = true; editingId = null; editDraft = null; }
+
+  function renderEditChips(){
+    var jobs = state.jobs.filter(function(j){ return !j.archived || j.id === editDraft.jobId; });
+    document.getElementById("edit-chips").innerHTML = jobs.map(function(j){
+      return '<button class="chip' + (editDraft.jobId === j.id ? " on" : "") + '" type="button" data-job="' + j.id + '" style="--jc:' + j.color + '">' +
+        '<span class="cdot"></span>' + esc(j.name) + '</button>';
+    }).join("");
+  }
+  function renderEditNote(){
+    var mo = monthOf(editDraft.ts);
+    document.getElementById("edit-note").textContent =
+      "この日時だと " + mo.y + "年" + (mo.m+1) + "月 に計上されます。";
+  }
+
+  editAmount.addEventListener("input", function(){ editDraft.amount = formatMoneyField(editAmount); });
+  editWhen.addEventListener("input", function(){
+    var t = fromLocalInput(editWhen.value);
+    if(t != null){ editDraft.ts = t; renderEditNote(); }
+  });
+  document.getElementById("edit-chips").addEventListener("click", function(ev){
+    var b = ev.target.closest("button");
+    if(!b) return;
+    editDraft.jobId = b.dataset.job;
+    renderEditChips();
+  });
+  document.getElementById("edit-save").addEventListener("click", function(){
+    var amount = toNum(editDraft.amount);
+    if(!(amount > 0)){ toast("金額を入れてください"); return; }
+    for(var i=0;i<state.entries.length;i++){
+      if(state.entries[i].id === editingId){
+        state.entries[i].amount = amount;
+        state.entries[i].jobId = editDraft.jobId;
+        state.entries[i].ts = editDraft.ts;
+        viewMonth = monthOf(editDraft.ts);
+      }
+    }
+    save(); closeEdit(); renderAll(); toast("保存しました");
+  });
+  document.getElementById("edit-delete").addEventListener("click", function(){
+    if(!confirm("この記録を削除しますか？")) return;
+    state.entries = state.entries.filter(function(e){ return e.id !== editingId; });
+    save(); closeEdit(); renderAll(); toast("削除しました");
+  });
+  document.getElementById("edit-close").addEventListener("click", closeEdit);
+  editOverlay.addEventListener("click", function(ev){ if(ev.target === editOverlay) closeEdit(); });
+
+  // ---------- 設定 ----------
+  var setOverlay = document.getElementById("settings-overlay");
+
+  function renderJobList(){
+    var box = document.getElementById("job-list");
+    var jobs = activeJobs();
+    if(!jobs.length){
+      box.innerHTML = '<div class="hint" style="margin:0 0 4px">まだ職場がありません。</div>';
+      return;
+    }
+    box.innerHTML = jobs.map(function(j){
+      return '<div class="job-row" data-id="' + j.id + '" style="--jc:' + j.color + '">' +
+        '<button class="sw" type="button" data-act="color" aria-label="色を変える"></button>' +
+        '<input type="text" value="' + esc(j.name) + '" maxlength="24" data-act="name" aria-label="職場の名前">' +
+        '<button class="del" type="button" data-act="del" aria-label="削除">×</button>' +
+      '</div>';
+    }).join("");
+  }
+  function renderCutoffHint(){
+    document.getElementById("cutoff-hint").textContent =
+      "毎月1日の " + cutoffStr() + " より前に記録したものは、前の月の合計に入ります。" +
+      "夜中に仕事が終わって、日付をまたいでから入力しても大丈夫です。";
+  }
+
+  function openSettings(){
+    document.getElementById("cutoff").value = cutoffStr();
+    renderJobList();
+    renderCutoffHint();
+    setOverlay.hidden = false;
+  }
+  function closeSettings(){ setOverlay.hidden = true; renderAll(); }
+
+  document.getElementById("open-settings").addEventListener("click", openSettings);
+  document.getElementById("settings-close").addEventListener("click", closeSettings);
+  setOverlay.addEventListener("click", function(ev){ if(ev.target === setOverlay) closeSettings(); });
+
+  document.getElementById("job-list").addEventListener("click", function(ev){
+    var btn = ev.target.closest("button");
+    if(!btn) return;
+    var row = btn.closest(".job-row");
+    var job = jobById(row.dataset.id);
+    if(!job) return;
+
+    if(btn.dataset.act === "color"){
+      var i = PALETTE.indexOf(job.color);
+      job.color = PALETTE[(i + 1) % PALETTE.length];
+      save(); renderJobList();
+    }else if(btn.dataset.act === "del"){
+      var used = state.entries.some(function(e){ return e.jobId === job.id; });
+      if(!confirm(used
+        ? "「" + job.name + "」を一覧から外しますか？\n過去の記録はそのまま残ります。"
+        : "「" + job.name + "」を削除しますか？")) return;
+      if(used){ job.archived = true; }
+      else{ state.jobs = state.jobs.filter(function(j){ return j.id !== job.id; }); }
+      if(draft.jobId === job.id) draft.jobId = null;
+      save(); renderJobList();
+    }
+  });
+  document.getElementById("job-list").addEventListener("input", function(ev){
+    if(ev.target.dataset.act !== "name") return;
+    var job = jobById(ev.target.closest(".job-row").dataset.id);
+    if(job){ job.name = ev.target.value; save(); }
+  });
+  document.getElementById("job-add").addEventListener("click", function(){
+    addJob("新しい職場");
+    renderJobList();
+    var rows = document.querySelectorAll("#job-list .job-row input");
+    var last = rows[rows.length-1];
+    if(last){ last.focus(); last.select(); }
+  });
+
+  document.getElementById("cutoff").addEventListener("input", function(){
+    var parts = String(this.value || "").split(":");
+    if(parts.length < 2) return;
+    var m = parseInt(parts[0],10) * 60 + parseInt(parts[1],10);
+    if(isNaN(m)) return;
+    state.cutoffMin = clampCut(m);
+    save();
+    renderCutoffHint();
+  });
+
+  // ---------- データ ----------
+  document.getElementById("export").addEventListener("click", function(){
+    var blob = new Blob([JSON.stringify(state, null, 2)], { type:"application/json" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    var d = new Date();
+    a.href = url;
+    a.download = "月給計算-" + d.getFullYear() + p2(d.getMonth()+1) + p2(d.getDate()) + ".json";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  });
+  document.getElementById("import").addEventListener("click", function(){
+    document.getElementById("import-file").click();
+  });
+  document.getElementById("import-file").addEventListener("change", function(){
+    var file = this.files && this.files[0];
+    this.value = "";
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      try{
+        var data = JSON.parse(reader.result);
+        if(!data || !Array.isArray(data.jobs) || !Array.isArray(data.entries)) throw new Error("bad");
+        if(!confirm("今のデータを、読み込んだ内容で置きかえます。よろしいですか？")) return;
+        state.jobs = data.jobs;
+        state.entries = data.entries;
+        if(typeof data.cutoffMin === "number") state.cutoffMin = clampCut(data.cutoffMin);
+        draft.jobId = null;
+        save();
+        viewMonth = monthOf(Date.now());
+        openSettings();
+        renderAll();
+        toast("読み込みました");
+      }catch(e){ alert("このファイルは読み込めませんでした。"); }
+    };
+    reader.readAsText(file);
+  });
+  document.getElementById("wipe").addEventListener("click", function(){
+    if(!confirm("記録と職場をすべて削除します。元に戻せません。よろしいですか？")) return;
+    state = { v:1, jobs:[], entries:[], cutoffMin:state.cutoffMin };
+    draft = { amount:"", jobId:null, ts:null };
+    amountEl.value = "";
+    save();
+    viewMonth = monthOf(Date.now());
+    renderJobList();
+    renderAll();
+    toast("削除しました");
+  });
+
+  // ---------- 起動 ----------
+  renderAll();
+
+  // 開きっぱなしで日付が変わっても表示がずれないように
+  setInterval(function(){ if(draft.ts == null) renderWhen(); }, 30000);
+  document.addEventListener("visibilitychange", function(){
+    if(!document.hidden && draft.ts == null) renderWhen();
+  });
+
+  if("serviceWorker" in navigator){
+    window.addEventListener("load", function(){
+      navigator.serviceWorker.register("./sw.js").catch(function(){});
+    });
+  }
+})();
+</script>
