@@ -219,6 +219,18 @@
     background:var(--surface-2);color:var(--text);font-size:.92rem}
   .job-row .del{flex:0 0 auto;width:36px;height:36px;border-radius:9px;border:1px solid var(--line);
     background:transparent;color:var(--danger);font-size:1.15rem;line-height:1;cursor:pointer}
+  .job-row.picking .sw{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* ---- 色えらび ---- */
+  .color-pop{margin:-2px 0 10px;padding:11px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2)}
+  .sw-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+  .sw-grid button{height:32px;padding:0;border-radius:9px;border:2px solid transparent;cursor:pointer;
+    box-shadow:inset 0 0 0 1px rgba(15,23,42,.14)}
+  .sw-grid button.on{border-color:var(--text)}
+  .free-row{display:flex;align-items:center;gap:9px;margin-top:11px;font-size:.78rem;color:var(--muted)}
+  .free-row input[type="color"]{flex:0 0 auto;width:46px;height:32px;padding:0;cursor:pointer;
+    border:1px solid var(--line);border-radius:9px;background:var(--surface)}
+  .free-row .hex{margin-left:auto;font-size:.72rem;font-variant-numeric:tabular-nums;text-transform:uppercase}
   .cut-row{display:flex;align-items:center;gap:10px}
   .cut-row input[type="time"]{padding:10px 11px;border-radius:10px;border:1px solid var(--line);
     background:var(--surface-2);color:var(--text);font:inherit;font-size:.95rem}
@@ -310,7 +322,7 @@
       <span class="field-label">職場</span>
       <div id="job-list"></div>
       <button class="btn block" id="job-add" type="button" style="margin-top:8px">＋ 職場を追加</button>
-      <div class="hint">色の四角をタップすると色が変わります。記録のある職場を削除しても、過去の記録と名前は残ります。</div>
+      <div class="hint">色の四角をタップすると、見本から選ぶか「自由に選ぶ」で好きな色にできます。記録のある職場を削除しても、過去の記録と名前は残ります。</div>
     </div>
 
     <div class="sec">
@@ -370,7 +382,14 @@
   "use strict";
 
   var STORE_KEY = "gekkyu-v1";
+  // 職場を追加したときに自動で割りあてる色（色相がなるべく離れる順）
   var PALETTE = ["#0ea5e9","#f43f5e","#22c55e","#f59e0b","#a855f7","#14b8a6","#ef4444","#6366f1"];
+  // 設定の色えらびに並べる見本。明るい画面でも暗い画面でも沈まない濃さでそろえてある
+  var SWATCHES = [
+    "#ef4444","#f97316","#f59e0b","#eab308","#84cc16","#22c55e",
+    "#10b981","#14b8a6","#06b6d4","#0ea5e9","#3b82f6","#6366f1",
+    "#8b5cf6","#a855f7","#d946ef","#ec4899","#f43f5e","#64748b"
+  ];
 
   // ---------- state ----------
   var state = load();
@@ -468,12 +487,25 @@
     return null;
   }
   function jobName(id){ var j = jobById(id); return j ? j.name : "（削除済み）"; }
-  function jobColor(id){ var j = jobById(id); return j ? j.color : "#94a3b8"; }
+  // 色は style 属性に直接入れるので、#rrggbb の形でなければ使わない
+  // （読み込んだJSONに変な文字列が入っていても、そこからCSSを壊されないように）
+  function normHex(c){
+    c = String(c == null ? "" : c).trim();
+    return /^#[0-9a-fA-F]{6}$/.test(c) ? c.toLowerCase() : "#64748b";
+  }
+  function jobColor(id){ var j = jobById(id); return j ? normHex(j.color) : "#94a3b8"; }
   function activeJobs(){ return state.jobs.filter(function(j){ return !j.archived; }); }
+  // まだ誰も使っていない色から順に配る。使いきったら先頭に戻る
+  function nextColor(){
+    var used = {};
+    state.jobs.forEach(function(j){ used[normHex(j.color)] = true; });
+    for(var i=0;i<PALETTE.length;i++){ if(!used[PALETTE[i]]) return PALETTE[i]; }
+    return PALETTE[state.jobs.length % PALETTE.length];
+  }
   function addJob(name){
     name = String(name || "").trim();
     if(!name) return null;
-    var job = { id:uid(), name:name, color:PALETTE[state.jobs.length % PALETTE.length] };
+    var job = { id:uid(), name:name, color:nextColor() };
     state.jobs.push(job);
     save();
     return job;
@@ -609,7 +641,7 @@
   function renderChips(){
     var jobs = activeJobs();
     var html = jobs.map(function(j){
-      return '<button class="chip' + (draft.jobId === j.id ? " on" : "") + '" type="button" data-job="' + j.id + '" style="--jc:' + j.color + '">' +
+      return '<button class="chip' + (draft.jobId === j.id ? " on" : "") + '" type="button" data-job="' + j.id + '" style="--jc:' + normHex(j.color) + '">' +
         '<span class="cdot"></span>' + esc(j.name) + '</button>';
     }).join("");
     html += '<button class="chip add" type="button" id="chip-add">＋ 職場</button>';
@@ -768,7 +800,7 @@
   function renderEditChips(){
     var jobs = state.jobs.filter(function(j){ return !j.archived || j.id === editDraft.jobId; });
     document.getElementById("edit-chips").innerHTML = jobs.map(function(j){
-      return '<button class="chip' + (editDraft.jobId === j.id ? " on" : "") + '" type="button" data-job="' + j.id + '" style="--jc:' + j.color + '">' +
+      return '<button class="chip' + (editDraft.jobId === j.id ? " on" : "") + '" type="button" data-job="' + j.id + '" style="--jc:' + normHex(j.color) + '">' +
         '<span class="cdot"></span>' + esc(j.name) + '</button>';
     }).join("");
   }
@@ -813,20 +845,55 @@
   // ---------- 設定 ----------
   var setOverlay = document.getElementById("settings-overlay");
 
+  var colorOpenFor = null;   // 色えらびを開いている職場のid
+
   function renderJobList(){
     var box = document.getElementById("job-list");
     var jobs = activeJobs();
     if(!jobs.length){
+      colorOpenFor = null;
       box.innerHTML = '<div class="hint" style="margin:0 0 4px">まだ職場がありません。</div>';
       return;
     }
     box.innerHTML = jobs.map(function(j){
-      return '<div class="job-row" data-id="' + j.id + '" style="--jc:' + j.color + '">' +
-        '<button class="sw" type="button" data-act="color" aria-label="色を変える"></button>' +
+      var open = colorOpenFor === j.id;
+      return '<div class="job-row' + (open ? " picking" : "") + '" data-id="' + j.id + '" style="--jc:' + normHex(j.color) + '">' +
+        '<button class="sw" type="button" data-act="color" aria-label="色を変える" aria-expanded="' + open + '"></button>' +
         '<input type="text" value="' + esc(j.name) + '" maxlength="24" data-act="name" aria-label="職場の名前">' +
         '<button class="del" type="button" data-act="del" aria-label="削除">×</button>' +
-      '</div>';
+      '</div>' + (open ? colorPopHtml(j) : "");
     }).join("");
+  }
+
+  function colorPopHtml(j){
+    var cur = normHex(j.color);
+    var grid = SWATCHES.map(function(c){
+      return '<button type="button" data-color="' + c + '" class="' + (c === cur ? "on" : "") +
+        '" style="background:' + c + '" aria-label="' + c + '"></button>';
+    }).join("");
+    return '<div class="color-pop" data-id="' + j.id + '">' +
+      '<div class="sw-grid">' + grid + '</div>' +
+      '<label class="free-row">自由に選ぶ' +
+        '<input type="color" value="' + cur + '" data-act="free" aria-label="好きな色">' +
+        '<span class="hex">' + cur + '</span>' +
+      '</label>' +
+    '</div>';
+  }
+
+  // 色をその場だけ塗りかえる。作り直すと開いている色ピッカーが閉じてしまうため
+  function applyColorLive(id, hex){
+    var box = document.getElementById("job-list");
+    var row = box.querySelector('.job-row[data-id="' + id + '"]');
+    if(row) row.style.setProperty("--jc", hex);
+    var pop = box.querySelector('.color-pop[data-id="' + id + '"]');
+    if(!pop) return;
+    var hexLabel = pop.querySelector(".hex");
+    if(hexLabel) hexLabel.textContent = hex;
+    var free = pop.querySelector('input[data-act="free"]');
+    if(free && free.value !== hex) free.value = hex;
+    Array.prototype.forEach.call(pop.querySelectorAll(".sw-grid button"), function(b){
+      b.classList.toggle("on", b.dataset.color === hex);
+    });
   }
   function renderCutoffHint(){
     document.getElementById("cutoff-hint").textContent =
@@ -835,6 +902,7 @@
   }
 
   function openSettings(){
+    colorOpenFor = null;
     document.getElementById("cutoff").value = cutoffStr();
     renderJobList();
     renderCutoffHint();
@@ -849,14 +917,27 @@
   document.getElementById("job-list").addEventListener("click", function(ev){
     var btn = ev.target.closest("button");
     if(!btn) return;
+
+    // 色見本を押したとき
+    var pop = btn.closest(".color-pop");
+    if(pop){
+      var pj = jobById(pop.dataset.id);
+      if(pj && btn.dataset.color){
+        pj.color = btn.dataset.color;
+        save();
+        applyColorLive(pj.id, pj.color);
+      }
+      return;
+    }
+
     var row = btn.closest(".job-row");
+    if(!row) return;
     var job = jobById(row.dataset.id);
     if(!job) return;
 
     if(btn.dataset.act === "color"){
-      var i = PALETTE.indexOf(job.color);
-      job.color = PALETTE[(i + 1) % PALETTE.length];
-      save(); renderJobList();
+      colorOpenFor = (colorOpenFor === job.id) ? null : job.id;
+      renderJobList();
     }else if(btn.dataset.act === "del"){
       var used = state.entries.some(function(e){ return e.jobId === job.id; });
       if(!confirm(used
@@ -865,16 +946,31 @@
       if(used){ job.archived = true; }
       else{ state.jobs = state.jobs.filter(function(j){ return j.id !== job.id; }); }
       if(draft.jobId === job.id) draft.jobId = null;
+      if(colorOpenFor === job.id) colorOpenFor = null;
       save(); renderJobList();
     }
   });
   document.getElementById("job-list").addEventListener("input", function(ev){
-    if(ev.target.dataset.act !== "name") return;
+    var act = ev.target.dataset.act;
+
+    if(act === "free"){
+      var pop = ev.target.closest(".color-pop");
+      var pj = pop && jobById(pop.dataset.id);
+      if(pj){
+        pj.color = normHex(ev.target.value);
+        save();
+        applyColorLive(pj.id, pj.color);
+      }
+      return;
+    }
+
+    if(act !== "name") return;
     var job = jobById(ev.target.closest(".job-row").dataset.id);
     if(job){ job.name = ev.target.value; save(); }
   });
   document.getElementById("job-add").addEventListener("click", function(){
     addJob("新しい職場");
+    colorOpenFor = null;
     renderJobList();
     var rows = document.querySelectorAll("#job-list .job-row input");
     var last = rows[rows.length-1];

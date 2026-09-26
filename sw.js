@@ -1,5 +1,5 @@
 // 月給計算 — Service Worker (オフライン対応)
-const CACHE = "gekkyu-v2";
+const CACHE = "gekkyu-v3";
 const ASSETS = [
   "./",
   "./index.html",
